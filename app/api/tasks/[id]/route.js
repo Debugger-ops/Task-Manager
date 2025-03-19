@@ -1,61 +1,44 @@
-import connectDB from '@/lib/mongodb';
-import Task from '@/models/Task';
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import Task from "@/models/Task";
 
-// Helper function to get a task by ID
-async function getTaskById(id) {
-  await connectDB();
-  const task = await Task.findById(id);
-  if (!task) {
-    throw new Error('Task not found');
-  }
-  return task;
-}
+export async function GET(req, { params }) {
+  await dbConnect();
 
-// GET handler to fetch single task
-export async function GET(request, { params }) {
   try {
-    const task = await getTaskById(params.id);
-    return NextResponse.json({ success: true, data: task }, { status: 200 });
+    const task = await Task.findById(params.id);
+    if (!task) return NextResponse.json({ message: "Task not found" }, { status: 404 });
+
+    return NextResponse.json({ data: task }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: error.message === 'Task not found' ? 404 : 500 });
+    return NextResponse.json({ message: "Invalid ID format" }, { status: 400 });
   }
 }
 
-// PUT handler to update a task
-export async function PUT(request, { params }) {
+export async function PUT(req, { params }) {
+  await dbConnect();
+
   try {
-    const body = await request.json();
-    await connectDB();
-    
-    const updatedTask = await Task.findByIdAndUpdate(
-      params.id,
-      body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedTask) {
-      return NextResponse.json({ success: false, message: 'Task not found' }, { status: 404 });
-    }
-    
-    return NextResponse.json({ success: true, data: updatedTask }, { status: 200 });
+    const { title, completed } = await req.json();
+    const updatedTask = await Task.findByIdAndUpdate(params.id, { title, completed }, { new: true });
+
+    if (!updatedTask) return NextResponse.json({ message: "Task not found" }, { status: 404 });
+
+    return NextResponse.json({ data: updatedTask }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "Update failed" }, { status: 400 });
   }
 }
 
-// DELETE handler to remove a task
-export async function DELETE(request, { params }) {
+export async function DELETE(req, { params }) {
+  await dbConnect();
+
   try {
-    await connectDB();
     const deletedTask = await Task.findByIdAndDelete(params.id);
-    
-    if (!deletedTask) {
-      return NextResponse.json({ success: false, message: 'Task not found' }, { status: 404 });
-    }
-    
-    return NextResponse.json({ success: true, data: {} }, { status: 200 });
+    if (!deletedTask) return NextResponse.json({ message: "Task not found" }, { status: 404 });
+
+    return NextResponse.json({ message: "Task deleted" }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "Delete failed" }, { status: 400 });
   }
 }
